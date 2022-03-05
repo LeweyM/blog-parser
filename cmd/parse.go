@@ -1,11 +1,7 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
-	"blogparser/blogparser/internal/parse"
+	"blogparser/internal/parse"
 	"fmt"
 
 	"github.com/spf13/cobra"
