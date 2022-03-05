@@ -24,7 +24,8 @@ var parseCmd = &cobra.Command{
 			return
 		}
 
-		err = parse.Handle(path, "", "")
+		handler := parse.NewHandler(path)
+		err = handler.Handle()
 		if err != nil {
 			fmt.Println(err)
 			return
