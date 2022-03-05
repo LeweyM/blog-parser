@@ -5,18 +5,21 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 )
 
-func Handle(path string) error {
-	files, err := ioutil.ReadDir(path)
+func Handle(root, imagesPath, outPath string) error {
+	postsPath := filepath.Join(root, "Blog posts")
+	files, err := ioutil.ReadDir(postsPath)
 	if err != nil {
-		return errors.New(fmt.Sprintf("could not read path %s", path))
+		return errors.New(fmt.Sprintf("could not read path %s", postsPath))
 	}
 
-	draftFiles, err := ioutil.ReadDir(getDraftPath(path))
+	draftPath := getDraftPath(postsPath)
+	draftFiles, err := ioutil.ReadDir(draftPath)
 	if err != nil {
-		return errors.New(fmt.Sprintf("could not read draft path %s", getDraftPath(path)))
+		return errors.New(fmt.Sprintf("could not read draft path %s", draftPath))
 	}
 
 	for _, draftFile := range draftFiles {
@@ -27,7 +30,9 @@ func Handle(path string) error {
 
 	for _, file := range files {
 		if isMarkdown(file) {
-			parseFile(file)
+			name := file.Name()
+			fmt.Printf("\npost: %s", name)
+			parseFile(filepath.Join(postsPath, file.Name()))
 		}
 	}
 
@@ -48,7 +53,30 @@ func isMarkdown(file fs.FileInfo) bool {
 	return ext == ".md"
 }
 
-func parseFile(file fs.FileInfo) {
-	name := file.Name()
-	fmt.Printf("\npost: %s", name)
+func parseFile(path string) {
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Printf("\n%v", err)
+		return
+	}
+
+	dir, err := ioutil.TempDir("", "*")
+	tempFile, err := ioutil.TempFile(dir, "tmp")
+	if err != nil {
+		fmt.Printf("\n%v", err)
+		return
+	}
+	defer os.Remove(tempFile.Name())
+
+	contents := string(file)
+	contents = parseImageLinks(contents)
+
+	_, err = tempFile.WriteString(contents)
+	if err != nil {
+		fmt.Printf("\n%v", err)
+		return
+	}
+
+	fmt.Println("")
+	fmt.Println(tempFile.Name())
 }
