@@ -70,9 +70,9 @@ func parseFile(path string, isDraft bool) {
 }
 
 func sanitize(title string) string {
-	sanitizedTitle := regexp.MustCompile(`[^\w]`).ReplaceAllString(title, "")
-	sanitizedTitle = regexp.MustCompile(` `).ReplaceAllString(title, "-")
-	return sanitizedTitle
+	title = regexp.MustCompile(`[^a-zA-Z0-9-_ ]`).ReplaceAllString(title, "")
+	title = regexp.MustCompile(` `).ReplaceAllString(title, "-")
+	return title
 }
 
 func writeToTempFile(tempFile *os.File, contents string) {
