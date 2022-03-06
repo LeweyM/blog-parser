@@ -1,6 +1,6 @@
 package main
 
-import "blogparser/cmd"
+import "github.com/LeweyM/blogparser/cmd"
 
 func main() {
 	cmd.Execute()

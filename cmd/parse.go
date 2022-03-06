@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"blogparser/internal/parse"
 	"fmt"
+	"github.com/LeweyM/blogparser/internal/parse"
 
 	"github.com/spf13/cobra"
 )
