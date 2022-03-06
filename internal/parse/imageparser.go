@@ -27,7 +27,7 @@ func parseImageLinks(contents string) string {
 
 func transformImageLink(imageLink ImageLink) string {
 	imageName := sanitizeImageName(imageLink)
-	return fmt.Sprintf("![%s](/static/img/%s)", imageName, imageName)
+	return fmt.Sprintf("![%s](/img/%s)", imageName, imageName)
 }
 
 func sanitizeImageName(location ImageLink) string {
