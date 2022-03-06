@@ -70,7 +70,7 @@ func (h *Handler) parseFile(path string, isDraft bool) {
 	contents = addHeader(contents, getTitleFromPath(path), isDraft)
 
 	writeToTempFile(tempFile, contents)
-	dest := filepath.Join(".", "out", fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
+	dest := filepath.Join(".", "out", "posts", fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
 	copyFile(tempFile.Name(), dest)
 }
 
