@@ -26,11 +26,25 @@ func parseImageLinks(contents string) string {
 }
 
 func transformImageLink(imageLink ImageLink) string {
+	imageName := sanitizeImageName(imageLink)
+	return fmt.Sprintf("![%s](/static/img/%s)", imageName, imageName)
+}
+
+func sanitizeImageName(location ImageLink) string {
+	return sanitize(getImageFileName(location.content))
+}
+
+func getImageFileName(content string) string {
+	name, ext := parseObsidianImageLink(content)
+	return name + ext
+}
+
+func parseObsidianImageLink(content string) (string, string) {
 	search := regexp.MustCompile("!\\[\\[(.*)(\\.png)]]")
-	matches := search.FindStringSubmatch(imageLink.content)
+	matches := search.FindStringSubmatch(content)
 	name := matches[1]
 	ext := matches[2]
-	return fmt.Sprintf("![%s](/static/img/%s%s)", name, name, ext)
+	return name, ext
 }
 
 func getImageLinkLocations(contents string) []ImageLink {

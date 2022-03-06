@@ -13,11 +13,11 @@ import (
 )
 
 type Handler struct {
-	root string
+	root, imgPath string
 }
 
-func NewHandler(root string) *Handler {
-	return &Handler{root: root}
+func NewHandler(root, imgPath string) *Handler {
+	return &Handler{root: root, imgPath: imgPath}
 }
 
 func (h *Handler) Handle() error {
@@ -35,13 +35,13 @@ func (h *Handler) Handle() error {
 
 	for _, draftFile := range draftFiles {
 		if isMarkdown(draftFile) {
-			parseFile(filepath.Join(draftPath, draftFile.Name()), true)
+			h.parseFile(filepath.Join(draftPath, draftFile.Name()), true)
 		}
 	}
 
 	for _, file := range files {
 		if isMarkdown(file) {
-			parseFile(filepath.Join(postsPath, file.Name()), false)
+			h.parseFile(filepath.Join(postsPath, file.Name()), false)
 		}
 	}
 
@@ -57,20 +57,33 @@ func isMarkdown(file fs.FileInfo) bool {
 	return ext == ".md"
 }
 
-func parseFile(path string, isDraft bool) {
+func (h *Handler) parseFile(path string, isDraft bool) {
 	tempFile := createTempFile()
 	defer os.Remove(tempFile.Name())
 
 	contents := getContentsFromFile(path)
+
+	locations := getImageLinkLocations(contents)
+	h.transformAndCopyImageFiles(locations)
+
 	contents = parseImageLinks(contents)
 	contents = addHeader(contents, getTitleFromPath(path), isDraft)
 
 	writeToTempFile(tempFile, contents)
-	copyToOut(tempFile.Name(), sanitize(getTitleFromPath(path)))
+	dest := filepath.Join(".", "out", fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
+	copyFile(tempFile.Name(), dest)
+}
+
+func (h *Handler) transformAndCopyImageFiles(locations []ImageLink) {
+	for _, location := range locations {
+		src := filepath.Join(h.root, getImageFileName(location.content))
+		dest := filepath.Join("out", "img", sanitizeImageName(location))
+		copyFile(src, dest)
+	}
 }
 
 func sanitize(title string) string {
-	title = regexp.MustCompile(`[^a-zA-Z0-9-_ ]`).ReplaceAllString(title, "")
+	title = regexp.MustCompile(`[^a-zA-Z0-9-_\. ]`).ReplaceAllString(title, "")
 	title = regexp.MustCompile(` `).ReplaceAllString(title, "-")
 	return title
 }
@@ -100,8 +113,7 @@ func createTempFile() *os.File {
 	return tempFile
 }
 
-func copyToOut(src, title string) {
-	dest := filepath.Join(".", "out", fmt.Sprintf("%s.md", title))
+func copyFile(src, dest string) {
 	os.Create(dest)
 	source, err := os.Open(src)
 	if err != nil {

@@ -20,7 +20,13 @@ var parseCmd = &cobra.Command{
 			return
 		}
 
-		handler := parse.NewHandler(path)
+		imgPath, err := cmd.Flags().GetString("imgPath")
+		if err != nil {
+			fmt.Printf("Error parsing 'imgPath' flag: %v", err)
+			return
+		}
+
+		handler := parse.NewHandler(path, imgPath)
 		err = handler.Handle()
 		if err != nil {
 			fmt.Println(err)
@@ -35,6 +41,9 @@ func init() {
 	parseCmd.Flags().StringP("path", "p", "", "directory to parse")
 	_ = parseCmd.MarkFlagRequired("path")
 	_ = parseCmd.MarkFlagDirname("path")
+
+	parseCmd.Flags().StringP("imgPath", "i", "", "directory to parse image files")
+	_ = parseCmd.MarkFlagDirname("imgPath")
 
 	// Here you will define your flags and configuration settings.
 
