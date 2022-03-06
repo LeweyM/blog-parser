@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -65,7 +66,13 @@ func parseFile(path string, isDraft bool) {
 	contents = addHeader(contents, getTitleFromPath(path), isDraft)
 
 	writeToTempFile(tempFile, contents)
-	copyToOut(tempFile.Name(), getTitleFromPath(path))
+	copyToOut(tempFile.Name(), sanitize(getTitleFromPath(path)))
+}
+
+func sanitize(title string) string {
+	sanitizedTitle := regexp.MustCompile(`[^\w]`).ReplaceAllString(title, "")
+	sanitizedTitle = regexp.MustCompile(` `).ReplaceAllString(title, "-")
+	return sanitizedTitle
 }
 
 func writeToTempFile(tempFile *os.File, contents string) {
