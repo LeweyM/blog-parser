@@ -63,10 +63,10 @@ func (h *Handler) parseFile(path string, isDraft bool) {
 
 	contents := getContentsFromFile(path)
 
-	locations := getImageLinkLocations(contents)
-	h.transformAndCopyImageFiles(locations)
+	h.transformAndCopyImageFiles(getImageLinkLocations(contents))
 
 	contents = parseImageLinks(contents)
+	contents = parseInternalLinks(contents)
 	contents = addHeader(contents, getTitleFromPath(path), isDraft)
 
 	writeToTempFile(tempFile, contents)
@@ -74,7 +74,29 @@ func (h *Handler) parseFile(path string, isDraft bool) {
 	copyFile(tempFile.Name(), dest)
 }
 
-func (h *Handler) transformAndCopyImageFiles(locations []ImageLink) {
+func getLinkLocations(contents string, reg *regexp.Regexp) []ContentLink {
+	var locations []ContentLink
+	found := true
+	offset := 0
+	for found {
+		loc := reg.FindIndex([]byte(contents))
+		if len(loc) > 0 {
+			l, r := loc[0], loc[1]
+			locations = append(locations, ContentLink{
+				l:       l + offset,
+				r:       r + offset,
+				content: contents[l:r],
+			})
+			offset += r
+			contents = contents[r:]
+		} else {
+			found = false
+		}
+	}
+	return locations
+}
+
+func (h *Handler) transformAndCopyImageFiles(locations []ContentLink) {
 	for _, location := range locations {
 		src := filepath.Join(h.root, getImageFileName(location.content))
 		dest := filepath.Join("out", "img", sanitizeImageName(location))

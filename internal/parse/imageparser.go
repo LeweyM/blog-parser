@@ -5,7 +5,9 @@ import (
 	"regexp"
 )
 
-type ImageLink struct {
+const imageLinkRegex = "!\\[\\[(.*)(\\.png)]]"
+
+type ContentLink struct {
 	l, r    int
 	content string
 }
@@ -25,12 +27,12 @@ func parseImageLinks(contents string) string {
 	return newPost
 }
 
-func transformImageLink(imageLink ImageLink) string {
+func transformImageLink(imageLink ContentLink) string {
 	imageName := sanitizeImageName(imageLink)
 	return fmt.Sprintf("![%s](/img/%s)", imageName, imageName)
 }
 
-func sanitizeImageName(location ImageLink) string {
+func sanitizeImageName(location ContentLink) string {
 	return sanitize(getImageFileName(location.content))
 }
 
@@ -40,33 +42,14 @@ func getImageFileName(content string) string {
 }
 
 func parseObsidianImageLink(content string) (string, string) {
-	search := regexp.MustCompile("!\\[\\[(.*)(\\.png)]]")
+	search := regexp.MustCompile(imageLinkRegex)
 	matches := search.FindStringSubmatch(content)
 	name := matches[1]
 	ext := matches[2]
 	return name, ext
 }
 
-func getImageLinkLocations(contents string) []ImageLink {
-	var locations []ImageLink
-	search := regexp.MustCompile("!\\[\\[(.*\\.png)]]")
-	found := true
-	offset := 0
-	for found {
-		loc := search.FindIndex([]byte(contents))
-		if len(loc) > 0 {
-			l, r := loc[0], loc[1]
-			locations = append(locations, ImageLink{
-				l:       l + offset,
-				r:       r + offset,
-				content: contents[l:r],
-			})
-			offset += r
-			contents = contents[r:]
-		} else {
-			found = false
-		}
-	}
-	return locations
+func getImageLinkLocations(contents string) []ContentLink {
+	return getLinkLocations(contents, regexp.MustCompile(imageLinkRegex))
 }
 
