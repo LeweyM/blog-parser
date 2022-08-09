@@ -106,6 +106,7 @@ func (h *Handler) transformAndCopyImageFiles(locations []ContentLink) {
 
 func sanitize(title string) string {
 	title = regexp.MustCompile(`[^a-zA-Z0-9-_\. ]`).ReplaceAllString(title, "")
+	title = strings.TrimSpace(title)
 	title = regexp.MustCompile(` `).ReplaceAllString(title, "-")
 	return title
 }
