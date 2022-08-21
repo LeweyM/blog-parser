@@ -22,7 +22,7 @@ func NewHandler(root, imgPath string) *Handler {
 
 func (h *Handler) Handle() error {
 	postsPath := filepath.Join(h.root, "Blog posts")
-	files, err := ioutil.ReadDir(postsPath)
+	postEntries, err := os.ReadDir(postsPath)
 	if err != nil {
 		return errors.New(fmt.Sprintf("could not read path %s", postsPath))
 	}
@@ -35,13 +35,25 @@ func (h *Handler) Handle() error {
 
 	for _, draftFile := range draftFiles {
 		if isMarkdown(draftFile) {
-			h.parseFile(filepath.Join(draftPath, draftFile.Name()), true)
+			h.parseFile(filepath.Join(draftPath, draftFile.Name()), true, "")
 		}
 	}
 
-	for _, file := range files {
-		if isMarkdown(file) {
-			h.parseFile(filepath.Join(postsPath, file.Name()), false)
+	for _, postEntry := range postEntries {
+		if postEntry.IsDir() {
+			seriesEntries, _ := os.ReadDir(filepath.Join(postsPath, postEntry.Name()))
+			for _, seriesEntry := range seriesEntries {
+				// no nested series
+				// special folder drafts is hardcoded
+				if !seriesEntry.IsDir() && postEntry.Name() != "drafts" {
+					h.parseFile(filepath.Join(postsPath, postEntry.Name(), seriesEntry.Name()), false, postEntry.Name())
+				}
+			}
+		} else {
+			fileInfo, _ := postEntry.Info()
+			if isMarkdown(fileInfo) {
+				h.parseFile(filepath.Join(postsPath, postEntry.Name()), false, "")
+			}
 		}
 	}
 
@@ -57,7 +69,10 @@ func isMarkdown(file fs.FileInfo) bool {
 	return ext == ".md"
 }
 
-func (h *Handler) parseFile(path string, isDraft bool) {
+func (h *Handler) parseFile(path string, isDraft bool, series string) {
+
+	fmt.Printf("\n%s, %s", path, series)
+
 	tempFile := createTempFile()
 	defer os.Remove(tempFile.Name())
 
@@ -67,7 +82,7 @@ func (h *Handler) parseFile(path string, isDraft bool) {
 
 	contents = parseImageLinks(contents)
 	contents = parseInternalLinks(contents)
-	contents = addHeader(contents, getTitleFromPath(path), isDraft)
+	contents = addHeader(contents, getTitleFromPath(path), isDraft, series)
 
 	writeToTempFile(tempFile, contents)
 	dest := filepath.Join(".", "out", "posts", fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
@@ -163,10 +178,18 @@ func getTitleFromPath(path string) string {
 	return fileName
 }
 
-func addHeader(contents, title string, isDraft bool) string {
+func addHeader(contents, title string, isDraft bool, series string) string {
+	ops := []string{
+		fmt.Sprintf("title: %s", title),
+		fmt.Sprintf("draft: %t", isDraft),
+	}
+	if series != "" {
+		ops = append(ops, fmt.Sprintf(`series: ["%s"]`, series))
+	}
+
 	header := fmt.Sprintf(`---
-title: %s
-draft: %t
----`, title, isDraft)
+%s
+---`, strings.Join(ops, "\n"))
+
 	return header + "\n\r" + contents
 }
