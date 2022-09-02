@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-const imageLinkRegex = "!\\[\\[(.*)(\\.png)]]"
+const imageLinkRegex = "!\\[\\[(.*)(\\.png|\\.gif)]]"
 
 type ContentLink struct {
 	l, r    int
@@ -52,4 +52,3 @@ func parseObsidianImageLink(content string) (string, string) {
 func getImageLinkLocations(contents string) []ContentLink {
 	return getLinkLocations(contents, regexp.MustCompile(imageLinkRegex))
 }
-
