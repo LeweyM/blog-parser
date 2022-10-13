@@ -87,7 +87,8 @@ func (h *Handler) parseFile(path string, isDraft bool, series string) {
 	contents = addHeader(contents, getTitleFromPath(path), isDraft, series)
 
 	writeToTempFile(tempFile, contents)
-	dest := filepath.Join(".", "out", "posts", fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
+	dest := filepath.Join(".", "out", "content", "posts", fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
+	os.MkdirAll(filepath.Join(".", "out", "content", "posts"), 0750)
 	copyFile(tempFile.Name(), dest)
 }
 
@@ -116,6 +117,7 @@ func getLinkLocations(contents string, reg *regexp.Regexp) []ContentLink {
 func (h *Handler) transformAndCopyImageFiles(locations []ContentLink) {
 	for _, location := range locations {
 		src := filepath.Join(h.root, getImageFileName(location.content))
+		os.MkdirAll(filepath.Join("out", "img"), 0750)
 		dest := filepath.Join("out", "img", sanitizeImageName(location))
 		copyFile(src, dest)
 	}
@@ -135,7 +137,7 @@ func (h *Handler) parseSeries(path string, isDraft bool, series string) {
 	contents = addHeader(contents, getTitleFromPath(path), isDraft, series)
 
 	writeToTempFile(tempFile, contents)
-	folderPath := filepath.Join(".", "out", "series", series)
+	folderPath := filepath.Join(".", "out", "content", "series", series)
 	os.MkdirAll(folderPath, 0750)
 	dest := filepath.Join(folderPath, fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
 	copyFile(tempFile.Name(), dest)
@@ -158,8 +160,8 @@ func (h *Handler) parseSeriesMetadata(path, series string) {
 	tempFile := createTempFile()
 	defer os.Remove(tempFile.Name())
 	writeToTempFile(tempFile, newFile)
-	os.MkdirAll(filepath.Join(".", "out", "series-descriptions"), 0750)
-	copyFile(tempFile.Name(), filepath.Join(".", "out", "series-descriptions", fmt.Sprintf("%s.md", series)))
+	os.MkdirAll(filepath.Join(".", "out", "content", "series-descriptions"), 0750)
+	copyFile(tempFile.Name(), filepath.Join(".", "out", "content", "series-descriptions", fmt.Sprintf("%s.md", series)))
 }
 
 type Header struct {
