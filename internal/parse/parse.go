@@ -152,7 +152,7 @@ func (h *Handler) parseSeriesMetadata(path, series string) {
 	header.title = series
 
 	imageLinkParts := regexp.MustCompile(imageLinkRegex).FindStringSubmatch(header.thumbnailSrc)
-	header.thumbnailSrc = filepath.Join("img", sanitize(fmt.Sprintf(imageLinkParts[1]+imageLinkParts[2])))
+	header.thumbnailSrc = filepath.Join("/img", sanitize(fmt.Sprintf(imageLinkParts[1]+imageLinkParts[2])))
 	h.transformAndCopyImageFiles(getImageLinkLocations(metadata))
 
 	newFile := strings.Join([]string{buildHeader(header), body}, "\n")
