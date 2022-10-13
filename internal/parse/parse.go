@@ -45,8 +45,10 @@ func (h *Handler) Handle() error {
 			for _, seriesEntry := range seriesEntries {
 				// no nested series
 				// special folder drafts is hardcoded
-				if !seriesEntry.IsDir() && postEntry.Name() != "drafts" {
-					h.parseFile(filepath.Join(postsPath, postEntry.Name(), seriesEntry.Name()), false, postEntry.Name())
+				if seriesEntry.Name() == "_index.md" {
+					h.parseSeriesMetadata(filepath.Join(postsPath, postEntry.Name(), seriesEntry.Name()), postEntry.Name())
+				} else if !seriesEntry.IsDir() && postEntry.Name() != "drafts" {
+					h.parseSeries(filepath.Join(postsPath, postEntry.Name(), seriesEntry.Name()), false, postEntry.Name())
 				}
 			}
 		} else {
@@ -117,6 +119,92 @@ func (h *Handler) transformAndCopyImageFiles(locations []ContentLink) {
 		dest := filepath.Join("out", "img", sanitizeImageName(location))
 		copyFile(src, dest)
 	}
+}
+func (h *Handler) parseSeries(path string, isDraft bool, series string) {
+	fmt.Printf("\n%s, %s", path, series)
+
+	tempFile := createTempFile()
+	defer os.Remove(tempFile.Name())
+
+	contents := getContentsFromFile(path)
+
+	h.transformAndCopyImageFiles(getImageLinkLocations(contents))
+
+	contents = parseImageLinks(contents)
+	contents = parseInternalLinks(contents)
+	contents = addHeader(contents, getTitleFromPath(path), isDraft, series)
+
+	writeToTempFile(tempFile, contents)
+	folderPath := filepath.Join(".", "out", "series", series)
+	os.MkdirAll(folderPath, 0750)
+	dest := filepath.Join(folderPath, fmt.Sprintf("%s.md", sanitize(getTitleFromPath(path))))
+	copyFile(tempFile.Name(), dest)
+}
+
+func (h *Handler) parseSeriesMetadata(path, series string) {
+	metadata := getContentsFromFile(path)
+	header := extractHeader(metadata)
+	body := extractContents(metadata)
+
+	header.seriesDescription = fmt.Sprintf(`["%s"]`, series)
+	header.title = series
+
+	imageLinkParts := regexp.MustCompile(imageLinkRegex).FindStringSubmatch(header.thumbnailSrc)
+	header.thumbnailSrc = filepath.Join("img", sanitize(fmt.Sprintf(imageLinkParts[1]+imageLinkParts[2])))
+	h.transformAndCopyImageFiles(getImageLinkLocations(metadata))
+
+	newFile := strings.Join([]string{buildHeader(header), body}, "\n")
+
+	tempFile := createTempFile()
+	defer os.Remove(tempFile.Name())
+	writeToTempFile(tempFile, newFile)
+	os.MkdirAll(filepath.Join(".", "out", "series-descriptions"), 0750)
+	copyFile(tempFile.Name(), filepath.Join(".", "out", "series-descriptions", fmt.Sprintf("%s.md", series)))
+}
+
+type Header struct {
+	title             string
+	seriesDescription string
+	thumbnailSrc      string
+}
+
+func extractHeader(fileContents string) Header {
+	h := Header{}
+	for _, s := range strings.Split(fileContents, "\n") {
+		s = strings.TrimSpace(s)
+		if strings.HasPrefix(s, "title:") {
+			s = strings.Replace(s, "title:", "", 1)
+			s = strings.TrimSpace(s)
+			h.title = s
+		}
+		if strings.HasPrefix(s, "image:") {
+			s = strings.Replace(s, "image:", "", 1)
+			s = strings.TrimSpace(s)
+			h.thumbnailSrc = s
+		}
+	}
+	return h
+}
+
+func extractContents(fileContents string) string {
+	return strings.TrimSpace(regexp.MustCompile("(?s)---(.*)---").ReplaceAllString(fileContents, ""))
+}
+
+func buildHeader(header Header) string {
+	res := []string{}
+	if header.title != "" {
+		res = append(res, fmt.Sprintf("title: %s", header.title))
+	}
+	if header.thumbnailSrc != "" {
+		res = append(res, fmt.Sprintf("image: %s", header.thumbnailSrc))
+	}
+	if header.seriesDescription != "" {
+		res = append(res, fmt.Sprintf("seriesdesc: %s", header.seriesDescription))
+	}
+
+	return fmt.Sprintf(`---
+%s
+---`, strings.Join(res, "\n"))
 }
 
 func sanitize(title string) string {
