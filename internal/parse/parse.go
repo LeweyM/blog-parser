@@ -117,7 +117,7 @@ func runSearchHTMLFileBuilder(contents string) string {
 
 	args := getArgsFromCommandString(commandStr)
 
-	path := filepath.Join("html")
+	path := filepath.Join("/", "html")
 
 	fileName := getFileName(args)
 	filePath := filepath.Join(path, fileName)
@@ -200,7 +200,7 @@ func getFileName(args []string) string {
 	hash.Write([]byte(strings.Join(args, "-")))
 	res := hash.Sum(nil)
 
-	return fmt.Sprintf("%x", res)
+	return fmt.Sprintf("%x.html", res)
 }
 
 func getLinkLocations(contents string, reg *regexp.Regexp) []ContentLink {
