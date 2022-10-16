@@ -1,12 +1,14 @@
 package parse
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -92,6 +94,115 @@ func (h *Handler) parseFile(path string, isDraft bool, series string) {
 	copyFile(tempFile.Name(), dest)
 }
 
+func parseCustomSearchShortcodes(contents string) string {
+	shortcodeRegex := regexp.MustCompile("{{< search(.*)>}}")
+
+	for indices := shortcodeRegex.FindStringIndex(contents); len(indices) != 0; indices = shortcodeRegex.FindStringIndex(contents) {
+		beginning := indices[0] // inclusive
+		end := indices[1]       // exclusive
+
+		htmlFilePath := runSearchHTMLFileBuilder(contents[beginning:end])
+
+		contents = contents[:beginning] + fmt.Sprintf(`{{< iframe src="%s" >}}`, htmlFilePath) + contents[end:]
+	}
+
+	return contents
+}
+
+func runSearchHTMLFileBuilder(contents string) string {
+	shortcodeRegex := regexp.MustCompile("{{< search(.*)>}}")
+
+	submatch := shortcodeRegex.FindStringSubmatch(contents)
+	commandStr := strings.TrimSpace(submatch[1])
+
+	args := getArgsFromCommandString(commandStr)
+
+	path := filepath.Join("html")
+
+	fileName := getFileName(args)
+	filePath := filepath.Join(path, fileName)
+
+	searchArgs := append(append([]string{args[0], "out"}, args[1:]...), filepath.Join("out", filePath))
+	cmd := exec.Command("search", searchArgs...)
+
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	return filePath
+}
+
+func getArgsFromCommandString(commandStr string) []string {
+	res := []string{}
+
+	currentWord := ""
+	isInDoubleQuotes := false
+	isInSingleQuotes := false
+	for _, char := range commandStr {
+		s := string(char)
+		print(s)
+
+		if char == '"' && !isInDoubleQuotes && !isInSingleQuotes {
+			isInDoubleQuotes = true
+		} else if char == '"' && isInDoubleQuotes {
+			if len(strings.TrimSpace(currentWord)) > 0 {
+				res = append(res, currentWord)
+			}
+			currentWord = ""
+		} else if char == '\'' && !isInDoubleQuotes && !isInSingleQuotes {
+			isInSingleQuotes = true
+		} else if char == '\'' && isInSingleQuotes {
+			if len(strings.TrimSpace(currentWord)) > 0 {
+				res = append(res, currentWord)
+			}
+			currentWord = ""
+		} else if char != ' ' && !isInDoubleQuotes && !isInSingleQuotes {
+			currentWord += string(char)
+		} else if isInDoubleQuotes || isInDoubleQuotes {
+			currentWord += string(char)
+		} else {
+			if len(strings.TrimSpace(currentWord)) > 0 {
+				res = append(res, currentWord)
+			}
+			currentWord = ""
+			isInDoubleQuotes = false
+			isInSingleQuotes = false
+		}
+	}
+
+	if len(strings.TrimSpace(currentWord)) > 0 {
+		res = append(res, currentWord)
+	}
+
+	return trimArgSpacesAndQuotations(res)
+}
+
+func trimArgSpacesAndQuotations(ss []string) []string {
+	res := []string{}
+
+	for _, s := range ss {
+		s = strings.TrimSpace(s)
+		if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
+			res = append(res, s[1:len(s)-1])
+		} else if strings.HasPrefix(s, `'`) && strings.HasSuffix(s, `'`) {
+			res = append(res, s[1:len(s)-1])
+		} else {
+			res = append(res, s)
+		}
+	}
+	return res
+}
+
+func getFileName(args []string) string {
+	//fileName := strings.Join(args, "-")
+	hash := md5.New()
+	hash.Write([]byte(strings.Join(args, "-")))
+	res := hash.Sum(nil)
+
+	return fmt.Sprintf("%x", res)
+}
+
 func getLinkLocations(contents string, reg *regexp.Regexp) []ContentLink {
 	var locations []ContentLink
 	found := true
@@ -135,6 +246,7 @@ func (h *Handler) parseSeries(path string, isDraft bool, series string) {
 	contents = parseImageLinks(contents)
 	contents = parseInternalLinks(contents)
 	contents = addHeader(contents, getTitleFromPath(path), isDraft, series)
+	contents = parseCustomSearchShortcodes(contents)
 
 	writeToTempFile(tempFile, contents)
 	folderPath := filepath.Join(".", "out", "content", "series", series)
