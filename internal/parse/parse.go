@@ -103,10 +103,20 @@ func parseCustomSearchShortcodes(contents string) string {
 
 		htmlFilePath := runSearchHTMLFileBuilder(contents[beginning:end])
 
-		contents = contents[:beginning] + fmt.Sprintf(`{{< iframe src="%s" >}}`, htmlFilePath) + contents[end:]
+		commands := shortcodeRegex.FindStringSubmatch(contents)[1]
+		contents = contents[:beginning] + fmt.Sprintf(`{{< iframe src="%s" caption="%s">}}`, htmlFilePath, parseCommandString(commands)) + contents[end:]
 	}
 
 	return contents
+}
+
+func parseCommandString(commands string) string {
+	commandStr := strings.TrimSpace(commands)
+	split := strings.SplitN(commandStr, " ", 2)
+	version, restOfCommands := split[0], split[1]
+	commandStr = strings.Join([]string{version, "draw", restOfCommands}, " ")
+	commandStr = strings.ReplaceAll(commandStr, `"`, `\"`)
+	return commandStr
 }
 
 func runSearchHTMLFileBuilder(contents string) string {
@@ -124,6 +134,7 @@ func runSearchHTMLFileBuilder(contents string) string {
 
 	searchArgs := append(append([]string{args[0], "out"}, args[1:]...), filepath.Join("out", filePath))
 	cmd := exec.Command("search", searchArgs...)
+	println("\ncalling: search", strings.Join(searchArgs, " "))
 
 	err := cmd.Run()
 	if err != nil {
